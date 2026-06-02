@@ -16,10 +16,10 @@ return new class extends Migration
             $table->string('name');
             $table->string('phone')->unique();
             $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->enum('role', ['admin', 'provider', 'user'])->default('user');
-            $table->boolean('is_searchable')->default(false);
+         $table->string('password');
+            $table->enum('role', ['admin', 'owner', 'user'])->default('user');
+                     $table->timestamp('email_verified_at')->nullable();
+      $table->boolean('is_searchable')->default(false);
             $table->boolean('is_active')->default(true);
             $table->rememberToken();
             $table->timestamps();
