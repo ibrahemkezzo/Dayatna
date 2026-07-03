@@ -42,10 +42,11 @@ class EntityService
             // 1. إنشاء الـ Entity
             $entity = Entity::create($data);
 
-            // تحديث رول مالك الـ Entity ليصبح 'owner' إذا لم يكن 'admin'
+            // تحديث رول مالك الـ Entity ليصبح 'owner' بداخل قاعدة البيانات وحزمة Spatie
             $owner = User::find($data['user_id']);
             if ($owner && $owner->role !== 'admin') {
                 $owner->update(['role' => 'owner']);
+                $owner->syncRoles(['owner']); // 🌟 تحديث Spatie (يمسح الأدوار السابقة ويثبت دور واحد فقط)
             }
 
             // 2. إدخال ساعات العمل
@@ -95,17 +96,19 @@ class EntityService
                     $oldOwner = User::find($entity->user_id);
                     $newOwner = User::find($newUserId);
 
-                    // 1. إرجاع المالك القديم إلى customer (بشرط ألا يكون آدمن، وألا يملك مزارع/منشآت أخرى في النظام)
+                    // 1. إرجاع المالك القديم إلى customer (بشرط ألا يكون آدمن، وألا يملك منشآت أخرى في النظام)
                     if ($oldOwner && $oldOwner->role !== 'admin') {
                         $hasOtherEntities = Entity::where('user_id', $oldOwner->id)->where('id', '!=', $entity->id)->exists();
                         if (!$hasOtherEntities) {
                             $oldOwner->update(['role' => 'customer']);
+                            $oldOwner->syncRoles(['customer']); // 🌟 تحديث Spatie للمالك القديم
                         }
                     }
 
                     // 2. ترقية المالك الجديد إلى owner (إذا لم يكن آدمن بالفعل)
                     if ($newOwner && $newOwner->role !== 'admin') {
                         $newOwner->update(['role' => 'owner']);
+                        $newOwner->syncRoles(['owner']); // 🌟 تحديث Spatie للمالك الجديد
                     }
 
                     // اعتماد الـ user_id الجديد في مصفوفة التحديث
@@ -158,6 +161,7 @@ class EntityService
                 $hasOtherEntities = Entity::where('user_id', $owner->id)->where('id', '!=', $entity->id)->exists();
                 if (!$hasOtherEntities) {
                     $owner->update(['role' => 'customer']);
+                    $owner->syncRoles(['customer']); // 🌟 تحديث Spatie عند حذف الـ Entity الأخيرة للمستخدم
                 }
             }
 
