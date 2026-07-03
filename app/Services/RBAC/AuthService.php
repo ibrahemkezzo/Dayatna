@@ -12,15 +12,25 @@ class AuthService
 {
     /**
      * Handle user registration and issue an API token.
+     * * @param array $data
+     * @param User|null $authUser الكائن الخاص بالمستخدم الحالي الذي ينفذ الطلب (إن وجد)
+     * @return array
      */
-    public function register(array $data): array
+    public function register(array $data, ?User $authUser = null): array
     {
+        // 🌟 شرط الأمان: افتراضياً الرول هو customer، ولا يسمح بتعديله إلا إذا كان المنشئ Admin
+        $finalRole = 'customer';
+
+        if ($authUser && $authUser->role === 'admin' && isset($data['role'])) {
+            $finalRole = $data['role'];
+        }
+
         $user = User::create([
             'name'     => $data['name'],
             'email'    => $data['email'],
             'phone'    => $data['phone'],
-            'password' => $data['password'],
-            'role'     => $data['role'] ?? 'user',
+            'password' => $data['password'], // يتم التشفير تلقائياً عبر الـ Casts بداخل المودل
+            'role'     => $finalRole,
         ]);
 
         $token = $user->createToken('dayatna_auth_token')->plainTextToken;

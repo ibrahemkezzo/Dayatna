@@ -70,10 +70,6 @@ class UpdateUserRequest extends FormRequest
                 'description' => 'Toggle flag to enable or completely suspend account access.',
                 'example' => true,
             ],
-            'permissions' => [
-                'description' => 'An array of descriptive permission names to assign directly to the user instance.',
-                'example' => ['create entities', 'edit entities']
-            ]
         ];
     }
 }

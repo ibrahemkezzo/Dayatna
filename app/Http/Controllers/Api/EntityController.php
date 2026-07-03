@@ -12,7 +12,7 @@ use App\Http\Resources\EntityResource;
 use App\Models\Entity;
 use App\Services\EntityService;
 use Illuminate\Http\JsonResponse;
-use Symfony\Component\HttpFoundation\Response; // Using standardized system constants
+use Symfony\Component\HttpFoundation\Response;
 
 class EntityController extends Controller
 {
@@ -37,7 +37,8 @@ class EntityController extends Controller
 
     public function store(StoreEntityRequest $request): JsonResponse
     {
-        $entity = $this->entityService->createEntity($request->validated(), auth()->id());
+        // نمرر كائن الـ User الكامل لفحص رول الآدمن عند الإنشاء وإمكانية تعيين مستخدم آخر
+        $entity = $this->entityService->createEntity($request->validated(), auth()->user());
 
         return response()->json([
             'message' => 'Entity created successfully with its structural timeline and media.',
@@ -55,7 +56,8 @@ class EntityController extends Controller
 
     public function update(UpdateEntityRequest $request, int $id): JsonResponse
     {
-        $entity = $this->entityService->updateEntity($id, $request->validated());
+        // نمرر كائن الـ User الكامل لفحص رول الآدمن عند التعديل لإمكانية نقل الملكية
+        $entity = $this->entityService->updateEntity($id, $request->validated(), auth()->user());
 
         return response()->json([
             'message' => 'Entity updated successfully with additional media.',

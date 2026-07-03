@@ -6,77 +6,103 @@ namespace App\Services;
 
 use App\Filters\EntityFilter;
 use App\Models\Entity;
+use App\Models\User;
 use App\Services\ImageService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 
 class EntityService
 {
-    /**
-     * EntityService constructor.
-     */
     public function __construct(protected ImageService $imageService) {}
 
     public function getPaginatedEntities(EntityFilter $filter, int $perPage = 15): LengthAwarePaginator
     {
         return Entity::query()
-            ->with(['category', 'primaryImage', 'contacts', 'workingHours'])
+            ->with(['category', 'primaryImage', 'contacts', 'workingHours', 'user'])
             ->filterUsing($filter)
             ->latest()
             ->paginate($perPage);
     }
 
-    public function createEntity(array $data, ?int $userId = null): Entity
+    /**
+     * Create Entity and upgrade owner role to 'owner'
+     */
+    public function createEntity(array $data, User $authUser): Entity
     {
-        return DB::transaction(function () use ($data, $userId) {
-            $data['user_id'] = $userId;
+        return DB::transaction(function () use ($data, $authUser) {
 
-            // 1. Instantiating the core entity profile
+            // إذا كان الآدمن هو من ينشئ وحدد مستخدم آخر، نعتمد الحقل المرسل، وإلا نعتمد الآيدي الخاص بالمستخدم الحالي
+            if ($authUser->role === 'admin' && isset($data['user_id'])) {
+                $data['user_id'] = (int) $data['user_id'];
+            } else {
+                $data['user_id'] = $authUser->id;
+            }
+
+            // 1. إنشاء الـ Entity
             $entity = Entity::create($data);
 
-            // 2. Persistent storage for multi-day scheduling timeline
+            // 🌟 التحديث الجديد: تحديث رول مالك الـ Entity ليصبح 'owner' إذا لم يكن 'admin'
+            $owner = User::find($data['user_id']);
+            if ($owner && $owner->role !== 'admin') {
+                $owner->update(['role' => 'owner']);
+            }
+
+            // 2. إدخال ساعات العمل
             $entity->workingHours()->createMany($data['working_hours']);
 
-            // 3. Conditional insertion of metadata contact channels
+            // 3. إدخال جهات الاتصال
             if (!empty($data['contacts'])) {
                 $entity->contacts()->createMany($data['contacts']);
             }
 
-            // 4. Processing multi-image batch uploads safely into 'entities' folder
+            // 4. رفع الصور
             if (!empty($data['images'])) {
                 $this->imageService->uploadMultiple($entity, $data['images'], 'entities');
             }
 
-            return $entity->load(['category', 'contacts', 'workingHours', 'images']);
+            return $entity->load(['category', 'contacts', 'workingHours', 'images', 'user']);
         });
     }
 
-    public function updateEntity(int $id, array $data): Entity
+    /**
+     * Update Entity and handle ownership transfer role upgrades
+     */
+    public function updateEntity(int $id, array $data, User $authUser): Entity
     {
-        return DB::transaction(function () use ($id, $data) {
+        return DB::transaction(function () use ($id, $data, $authUser) {
             $entity = Entity::findOrFail($id);
 
-            // Updating base model record rows
+            if (!$authUser->role === 'admin' || !isset($data['user_id'])) {
+                unset($data['user_id']);
+            } else {
+                $data['user_id'] = (int) $data['user_id'];
+            }
+
             $entity->update($data);
 
-            // Refreshing working hours timelines safely if dispatched
+            // 🌟 التحديث الجديد: في حال قام الآدمن بنقل الملكية لمستخدم آخر، نقوم بترقية رول المالك الجديد
+            if (isset($data['user_id'])) {
+                $newOwner = User::find($data['user_id']);
+                if ($newOwner && $newOwner->role !== 'admin') {
+                    $newOwner->update(['role' => 'owner']);
+                }
+            }
+
             if (isset($data['working_hours'])) {
                 $entity->workingHours()->delete();
                 $entity->workingHours()->createMany($data['working_hours']);
             }
 
-            // Replacing contact channel collections conditionally
             if (isset($data['contacts'])) {
                 $entity->contacts()->delete();
                 $entity->contacts()->createMany($data['contacts']);
             }
 
-            // Appending fresh uploaded images dynamically to the gallery if present
             if (!empty($data['images'])) {
                 $this->imageService->uploadMultiple($entity, $data['images'], 'entities');
             }
 
-            return $entity->load(['category', 'contacts', 'workingHours', 'images']);
+            return $entity->load(['category', 'contacts', 'workingHours', 'images', 'user']);
         });
     }
 
@@ -85,16 +111,18 @@ class EntityService
         DB::transaction(function () use ($id) {
             $entity = Entity::findOrFail($id);
 
-            // Unlinking relational dependencies
             $entity->workingHours()->delete();
             $entity->contacts()->delete();
 
-            // Cascading file system storage deletions for physical images
             foreach ($entity->images as $image) {
                 $this->imageService->delete($image);
             }
 
-            // Finally, purge structural primary entity index row
+            $owner = User::findOrFail($entity->user->id);
+            if ($owner && $owner->role !== 'admin') {
+                $owner->update(['role' => 'customer']);
+            }
+
             $entity->delete();
         });
     }

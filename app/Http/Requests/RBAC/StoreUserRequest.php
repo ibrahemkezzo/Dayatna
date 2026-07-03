@@ -30,10 +30,6 @@ class StoreUserRequest extends FormRequest
             'role'          => 'required|string|exists:roles,name',
             'is_active'     => 'sometimes|required|boolean',
             'is_searchable' => 'sometimes|required|boolean',
-
-            // Optional direct permissions array
-            'permissions'   => 'nullable|array',
-            'permissions.*' => 'required|string|exists:permissions,name',
         ];
     }
 
@@ -61,7 +57,7 @@ class StoreUserRequest extends FormRequest
             ],
             'role' => [
                 'description' => 'The designated core role assigned by the administrator.',
-                'example' => 'provider',
+                'example' => 'owner',
             ],
             'is_active' => [
                 'description' => 'Initial active operational state status flag.',

@@ -28,7 +28,7 @@ class RegisterRequest extends FormRequest
             'email'    => ['required', 'string', 'email', 'max:255', 'unique:users,email'], // Added Email validation
             'phone'    => ['required', 'string', 'unique:users,phone', 'regex:/^09\d{8}$/'],
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
-            'role'     => ['nullable', 'string', 'in:user,provider'],
+            'role'     => ['nullable', 'string', 'in:customer,owner,admin'], // Optional role field with allowed values
             'password_confirmation' => ['required', 'string'], // Explicitly added to align with Scribe and Laravel validation
         ];
     }
@@ -58,7 +58,7 @@ class RegisterRequest extends FormRequest
             ],
             'role' => [
                 'description' => 'The account type (user or provider).',
-                'example'     => 'user'
+                'example'     => 'customer'
             ],
         ];
     }

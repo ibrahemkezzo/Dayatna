@@ -19,6 +19,12 @@ class EntityResource extends JsonResource
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
+            // عرض بيانات مالك الـ Entity بشكل مشروط عند تحميل العلاقة
+            'user' => $this->relationLoaded('user') && $this->user ? [
+                'id' => $this->user->id,
+                'name' => $this->user->name,
+                'email' => $this->user->email, // متاح في حال الحاجة للتواصل معه بداخل لوحة التحكم
+            ] : null,
             'address' => $this->address,
             'location' => [
                 'latitude' => $this->latitude,
@@ -27,6 +33,8 @@ class EntityResource extends JsonResource
             'price_range' => $this->price_range,
             'is_verified' => $this->is_verified,
             'status' => $this->status,
+
+
 
             // Conditionally mapped relation structures
             'category' => $this->relationLoaded('category') ? [
@@ -58,6 +66,7 @@ class EntityResource extends JsonResource
             ),
 
             'created_at' => $this->created_at?->toIso8601String(),
+            'updated_at' => $this->updated_at?->toIso8601String(), // مضاف لتتبع التعديلات الإدارية
         ];
     }
 }
