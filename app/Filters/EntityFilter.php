@@ -24,6 +24,9 @@ class EntityFilter
             ->when($this->request->filled('category_id'), function ($q) {
                 $q->where('category_id', $this->request->query('category_id'));
             })
+            ->when($this->request->filled('user_id'), function ($q) {
+                $q->where('user_id', $this->request->query('user_id'));
+            })
             ->when($this->request->filled('status'), function ($q) {
                 $q->where('status', $this->request->query('status'));
             })
